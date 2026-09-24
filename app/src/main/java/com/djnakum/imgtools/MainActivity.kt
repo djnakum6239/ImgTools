@@ -15,8 +15,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private object NativeEngine {
     init { System.loadLibrary("imgtools") }
@@ -24,6 +26,7 @@ private object NativeEngine {
     external fun crc32(data: ByteArray): Long
     external fun detectFormat(data: ByteArray): Int
     external fun inspectHeader(data: ByteArray): String?
+    external fun inspectFile(fd: Int, size: Long): String?
 }
 
 data class Detection(val label: String, val detail: String)
@@ -67,11 +70,19 @@ class MainActivity : ComponentActivity() {
         }
         lifecycleScope.launch {
             val result = runCatching {
-                UriByteSource(contentResolver, uri).use { source ->
-                    val prefix = source.readPrefix()
-                    detectionFor(NativeEngine.detectFormat(prefix)).let { detected ->
-                        val header = NativeEngine.inspectHeader(prefix)
-                        if (header.isNullOrBlank()) detected else Detection(detected.label, header)
+                withContext(Dispatchers.IO) {
+                    UriByteSource(contentResolver, uri).use { source ->
+                        val report = NativeEngine.inspectFile(source.fileDescriptor, source.size)
+                            ?: error("Native engine could not inspect the selected file.")
+                        val separator = report.indexOf('|')
+                        val code = report.substringBefore('|').toIntOrNull() ?: 0
+                        val detail = if (separator >= 0) {
+                            report.substring(separator + 1)
+                        } else {
+                            "Native inspection returned an invalid report."
+                        }
+                        val detected = detectionFor(code)
+                        if (detail.isBlank()) detected else Detection(detected.label, detail)
                     }
                 }
             }
