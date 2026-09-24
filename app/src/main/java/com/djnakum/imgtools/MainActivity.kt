@@ -30,6 +30,7 @@ private data class Detection(val label: String, val detail: String)
 private fun detectionFor(code: Int): Detection = when (code) {
     1 -> Detection("Android boot image", "ANDROID! header")
     2 -> Detection("Android vendor_boot image", "VNDRBOOT header")
+    13 -> Detection("Android init_boot image", "v4 boot header with ramdisk and no kernel")
     3 -> Detection("Android sparse image", "libsparse header")
     4 -> Detection("Android OTA payload", "CrAU header")
     5 -> Detection("ZIP package", "PK archive header")
