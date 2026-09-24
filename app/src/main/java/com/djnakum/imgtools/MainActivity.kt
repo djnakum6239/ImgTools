@@ -26,7 +26,7 @@ private object NativeEngine {
     external fun inspectHeader(data: ByteArray): String?
 }
 
-private data class Detection(val label: String, val detail: String)
+data class Detection(val label: String, val detail: String)
 
 private fun detectionFor(code: Int): Detection = when (code) {
     1 -> Detection("Android boot image", "ANDROID! header")
@@ -81,7 +81,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun detectionState(): MutableStateFlow<Detection?> = detection
+    fun detectionState(): MutableStateFlow<Detection?> = detection
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
