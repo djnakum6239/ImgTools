@@ -3,6 +3,8 @@
 //! The Android side supplies SAF ranges; native parsers should consume those ranges rather than
 //! assuming an entire image is resident in memory.
 
+use std::os::fd::RawFd;
+
 pub trait ByteSource {
     fn size(&self) -> u64;
     fn read(&mut self, offset: u64, length: usize) -> Result<Vec<u8>, ByteSourceError>;
@@ -36,6 +38,67 @@ impl ByteSource for MemorySource {
         }
         let end = start.saturating_add(length).min(self.bytes.len());
         Ok(self.bytes[start..end].to_vec())
+    }
+}
+
+/// A read-only source backed by an Android file descriptor.
+///
+/// The descriptor remains owned by the Android caller. Native code only borrows it for the
+/// duration of a read, using pread so concurrent range requests do not mutate file position.
+pub struct FdSource {
+    fd: RawFd,
+    size: u64,
+}
+
+impl FdSource {
+    pub fn new(fd: RawFd, size: u64) -> Result<Self, ByteSourceError> {
+        if fd < 0 {
+            return Err(ByteSourceError::Io("invalid file descriptor".to_string()));
+        }
+        Ok(Self { fd, size })
+    }
+}
+
+impl ByteSource for FdSource {
+    fn size(&self) -> u64 {
+        self.size
+    }
+
+    fn read(&mut self, offset: u64, length: usize) -> Result<Vec<u8>, ByteSourceError> {
+        if offset >= self.size || length == 0 {
+            return Ok(Vec::new());
+        }
+        let actual = (self.size - offset).min(length as u64) as usize;
+        let mut output = vec![0u8; actual];
+        let mut done = 0usize;
+        while done < actual {
+            let absolute = offset
+                .checked_add(done as u64)
+                .ok_or(ByteSourceError::OutOfRange)?;
+            let position = libc::off_t::try_from(absolute)
+                .map_err(|_| ByteSourceError::OutOfRange)?;
+            let result = unsafe {
+                libc::pread(
+                    self.fd,
+                    output[done..].as_mut_ptr().cast(),
+                    actual - done,
+                    position,
+                )
+            };
+            if result < 0 {
+                let error = std::io::Error::last_os_error();
+                if error.kind() == std::io::ErrorKind::Interrupted {
+                    continue;
+                }
+                return Err(ByteSourceError::Io(error.to_string()));
+            }
+            if result == 0 {
+                output.truncate(done);
+                break;
+            }
+            done += result as usize;
+        }
+        Ok(output)
     }
 }
 
