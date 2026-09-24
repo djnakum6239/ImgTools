@@ -55,7 +55,7 @@ class MainActivity : ComponentActivity() {
         setContent { ImgToolsApp() }
     }
 
-    private fun chooseResult(uri: Uri?) {
+    fun chooseResult(uri: Uri?) {
         if (uri == null) return
         try {
             contentResolver.takePersistableUriPermission(
@@ -68,8 +68,9 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             val result = runCatching {
                 UriByteSource(contentResolver, uri).use { source ->
-                    detectionFor(NativeEngine.detectFormat(source.readPrefix())).let { detected ->
-                        val header = NativeEngine.inspectHeader(source.readPrefix())
+                    val prefix = source.readPrefix()
+                    detectionFor(NativeEngine.detectFormat(prefix)).let { detected ->
+                        val header = NativeEngine.inspectHeader(prefix)
                         if (header.isNullOrBlank()) detected else Detection(detected.label, header)
                     }
                 }
@@ -79,6 +80,8 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    fun detectionState(): MutableStateFlow<Detection?> = detection
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -86,7 +89,7 @@ class MainActivity : ComponentActivity() {
 private fun ImgToolsApp() {
     val activity = androidx.compose.ui.platform.LocalContext.current as MainActivity
     var selected by remember { mutableStateOf<Uri?>(null) }
-    val detection by activity.detection.collectAsStateWithLifecycle()
+    val detection by activity.detectionState().collectAsStateWithLifecycle()
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {
         selected = it
         activity.chooseResult(it)
@@ -130,7 +133,7 @@ private fun ImgToolsApp() {
                         }
                     }
                 }
-                item { Text("Native engine v${NativeEngine.version()}", style = MaterialTheme.typography.labelMedium) }
+                item { Text("Native engine v" + NativeEngine.version(), style = MaterialTheme.typography.labelMedium) }
             }
         }
     }
