@@ -252,8 +252,9 @@ mod tests {
     fn detects_truncated_section() {
         let b = v4(5000, 0);
         let h = crate::boot::parse_boot_header(&b).unwrap();
+        let source_size = 4096u64 + 4999;
         assert!(matches!(
-            boot_sections(&h, b.len() as u64),
+            boot_sections(&h, source_size),
             Err(LayoutError::SectionOutOfBounds { kind: BootSectionKind::Kernel, .. })
         ));
     }
