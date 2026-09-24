@@ -88,8 +88,8 @@ pub fn boot_header_size(version: u32) -> usize {
 }
 
 pub fn parse_boot_header(bytes: &[u8]) -> Result<BootHeader, BootParseError> {
-    if bytes.len() < HEADER_V0_SIZE {
-        return Err(BootParseError::TooSmall { actual: bytes.len(), minimum: HEADER_V0_SIZE });
+    if bytes.len() < HEADER_V3_SIZE {
+        return Err(BootParseError::TooSmall { actual: bytes.len(), minimum: HEADER_V3_SIZE });
     }
     let mut magic = [0u8; 8];
     magic.copy_from_slice(&bytes[..8]);
