@@ -3,6 +3,7 @@ mod boot;
 mod bytesource;
 mod binary;
 mod boot_layout;
+mod zip;
 use jni::objects::{JByteArray, JClass};
 use jni::sys::{jint, jlong, jstring};
 use jni::JNIEnv;
