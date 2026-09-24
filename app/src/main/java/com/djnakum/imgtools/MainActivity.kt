@@ -23,6 +23,7 @@ private object NativeEngine {
     external fun version(): Int
     external fun crc32(data: ByteArray): Long
     external fun detectFormat(data: ByteArray): Int
+    external fun inspectHeader(data: ByteArray): String?
 }
 
 private data class Detection(val label: String, val detail: String)
@@ -67,7 +68,10 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             val result = runCatching {
                 UriByteSource(contentResolver, uri).use { source ->
-                    detectionFor(NativeEngine.detectFormat(source.readPrefix()))
+                    detectionFor(NativeEngine.detectFormat(source.readPrefix())).let { detected ->
+                        val header = NativeEngine.inspectHeader(source.readPrefix())
+                        if (header.isNullOrBlank()) detected else Detection(detected.label, header)
+                    }
                 }
             }
             detection.value = result.getOrElse {
