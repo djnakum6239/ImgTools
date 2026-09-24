@@ -4,7 +4,7 @@ mod bytesource;
 mod binary;
 mod boot_layout;
 use jni::objects::{JByteArray, JClass};
-use jni::sys::{jint, jlong};
+use jni::sys::{jint, jlong, jstring};
 use jni::JNIEnv;
 
 #[unsafe(no_mangle)]
@@ -17,6 +17,43 @@ pub extern "system" fn Java_com_djnakum_imgtools_NativeEngine_crc32(mut env: JNI
     let bytes = match env.convert_byte_array(data) { Ok(v) => v, Err(_) => return -1 };
     if bytes.is_empty() { return 0; }
     unsafe { imageforge_core::imageforge_crc32(bytes.as_ptr() as *const u8, bytes.len()) as jlong }
+}
+
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_djnakum_imgtools_NativeEngine_inspectHeader(
+    mut env: JNIEnv,
+    _class: JClass,
+    data: JByteArray,
+) -> jstring {
+    let bytes = match env.convert_byte_array(data) {
+        Ok(v) => v,
+        Err(_) => return std::ptr::null_mut(),
+    };
+    let result = if let Ok(header) = crate::boot::parse_boot_header(&bytes) {
+        format!(
+            "boot v{} • header {} B • kernel {} B • ramdisk {} B • page {} B",
+            header.header_version,
+            header.header_size,
+            header.kernel_size,
+            header.ramdisk_size,
+            header.page_size
+        )
+    } else if let Ok(header) = crate::boot::parse_vendor_boot_header(&bytes) {
+        format!(
+            "vendor_boot v{} • header {} B • vendor ramdisk {} B • dtb {} B • page {} B",
+            header.header_version,
+            header.header_size,
+            header.vendor_ramdisk_size,
+            header.dtb_size,
+            header.page_size
+        )
+    } else {
+        "Header details unavailable for this format".to_string()
+    };
+    match env.new_string(result) {
+        Ok(value) => value.into_raw(),
+        Err(_) => std::ptr::null_mut(),
+    }
 }
 
 /// Format identifiers intentionally mirror the upstream workspace detector's content/container split.
