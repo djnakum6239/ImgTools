@@ -65,6 +65,45 @@ pub extern "system" fn Java_com_djnakum_imgtools_NativeEngine_inspectHeader(
 /// Kotlin keeps the ParcelFileDescriptor alive while this synchronous JNI call runs. The native
 /// FdSource uses pread, so parsers can later issue independent range reads against the same file.
 #[unsafe(no_mangle)]
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_djnakum_imgtools_NativeEngine_listZip(
+    mut env: JNIEnv,
+    _class: JClass,
+    fd: jint,
+    size: jlong,
+) -> jstring {
+    if size < 0 {
+        return std::ptr::null_mut();
+    }
+    let mut source = match crate::bytesource::FdSource::new(fd, size as u64) {
+        Ok(source) => source,
+        Err(_) => return std::ptr::null_mut(),
+    };
+    let entries = match crate::zip::list(&mut source) {
+        Ok(entries) => entries,
+        Err(error) => {
+            return match env.new_string(format!("error: {:?}", error)) {
+                Ok(value) => value.into_raw(),
+                Err(_) => std::ptr::null_mut(),
+            };
+        }
+    };
+    let mut report = format!("{} entries", entries.len());
+    for entry in entries.iter().take(200) {
+        report.push_str(&format!(
+            "\n{}\tmethod={}\tcompressed={}\tuncompressed={}\toffset={}",
+            entry.name, entry.method, entry.compressed_size, entry.uncompressed_size, entry.data_offset
+        ));
+    }
+    if entries.len() > 200 {
+        report.push_str(&format!("\n… {} more entries", entries.len() - 200));
+    }
+    match env.new_string(report) {
+        Ok(value) => value.into_raw(),
+        Err(_) => std::ptr::null_mut(),
+    }
+}
+
 pub extern "system" fn Java_com_djnakum_imgtools_NativeEngine_inspectFile(
     mut env: JNIEnv,
     _class: JClass,
