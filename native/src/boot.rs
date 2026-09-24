@@ -158,7 +158,7 @@ pub fn parse_vendor_boot_header(bytes: &[u8]) -> Result<VendorBootHeader, BootPa
     }
 
     let version = u32le(bytes, 8);
-    if version > MAX_HEADER_VERSION {
+    if version < 3 || version > MAX_HEADER_VERSION {
         return Err(BootParseError::UnsupportedVersion(version));
     }
     let required = if version >= 4 { VENDOR_HEADER_V4_SIZE } else { VENDOR_HEADER_V3_SIZE };
@@ -168,7 +168,7 @@ pub fn parse_vendor_boot_header(bytes: &[u8]) -> Result<VendorBootHeader, BootPa
 
     Ok(VendorBootHeader {
         header_version: version,
-        header_size: u32le(bytes, 2096),
+        header_size: { let encoded = u32le(bytes, 2096); if encoded == 0 { required as u32 } else { encoded } },
         page_size: u32le(bytes, 12),
         kernel_addr: u32le(bytes, 16),
         ramdisk_addr: u32le(bytes, 20),
