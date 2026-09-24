@@ -27,6 +27,7 @@ private object NativeEngine {
     external fun detectFormat(data: ByteArray): Int
     external fun inspectHeader(data: ByteArray): String?
     external fun inspectFile(fd: Int, size: Long): String?
+    external fun listZip(fd: Int, size: Long): String?
 }
 
 data class Detection(val label: String, val detail: String)
@@ -82,7 +83,15 @@ class MainActivity : ComponentActivity() {
                             "Native inspection returned an invalid report."
                         }
                         val detected = detectionFor(code)
-                        if (detail.isBlank()) detected else Detection(detected.label, detail)
+                        if (code == 5) {
+                            val zipReport = NativeEngine.listZip(source.fileDescriptor, source.size)
+                                ?: "ZIP listing failed."
+                            Detection(detected.label, "$detail\\n$zipReport")
+                        } else if (detail.isBlank()) {
+                            detected
+                        } else {
+                            Detection(detected.label, detail)
+                        }
                     }
                 }
             }
