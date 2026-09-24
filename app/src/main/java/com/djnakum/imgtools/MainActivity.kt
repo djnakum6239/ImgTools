@@ -81,7 +81,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    fun detectionState(): MutableStateFlow<Detection?> = detection
+    private fun detectionState(): MutableStateFlow<Detection?> = detection
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
