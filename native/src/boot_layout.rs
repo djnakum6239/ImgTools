@@ -12,6 +12,7 @@ pub enum BootSectionKind {
     VendorDtb,
     VendorRamdiskTable,
     Bootconfig,
+    Signature,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -126,7 +127,35 @@ pub fn boot_sections(header: &BootHeader, source_size: u64) -> Result<Vec<BootSe
             offset,
             size: u64::from(header.dtb_size),
         }, source_size)?;
+        cursor = align_up(offset + s.size, page)?;
         sections.push(s);
+    }
+
+    if header.header_version >= 3 {
+        let signature_size = u64::from(header.signature_size);
+        if signature_size > source_size {
+            return Err(LayoutError::SectionOutOfBounds {
+                kind: BootSectionKind::Signature,
+                offset: 0,
+                size: signature_size,
+                source_size,
+            });
+        }
+        let signature_offset = source_size - signature_size;
+        if cursor < signature_offset {
+            sections.push(validate_section(BootSection {
+                kind: BootSectionKind::Bootconfig,
+                offset: cursor,
+                size: signature_offset - cursor,
+            }, source_size)?);
+        }
+        if signature_size > 0 {
+            sections.push(validate_section(BootSection {
+                kind: BootSectionKind::Signature,
+                offset: signature_offset,
+                size: signature_size,
+            }, source_size)?);
+        }
     }
 
     Ok(sections)
