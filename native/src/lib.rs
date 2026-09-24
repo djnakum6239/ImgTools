@@ -50,7 +50,7 @@ pub mod detect {
         if magic_at(bytes, 1024, &[0xe2, 0xe1, 0xf5, 0xe0]) { return EROFS; }
         if magic_at(bytes, 1024, &[0x10, 0x20, 0xf5, 0xf2]) { return F2FS; }
         if magic_at(bytes, 0, &[0xd0, 0x0d, 0xfe, 0xed]) { return DTB; }
-        if magic_at(bytes, 0, b"\\x7fELF") { return ELF; }
+        if magic_at(bytes, 0, b"\x7fELF") { return ELF; }
         // AOSP LP_METADATA_GEOMETRY_MAGIC = 0x616c4467, stored little-endian as "gDla".
         if magic_at(bytes, 0, &[0x67, 0x44, 0x6c, 0x61])
             || magic_at(bytes, 4096, &[0x67, 0x44, 0x6c, 0x61]) {
