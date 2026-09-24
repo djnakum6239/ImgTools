@@ -26,6 +26,9 @@ class UriByteSource(
 
     private val channel: FileChannel = FileInputStream(descriptor.fileDescriptor).channel
 
+    val fileDescriptor: Int
+        get() = descriptor.fd
+
     val size: Long
         get() = descriptor.statSize.takeIf { it >= 0 } ?: channel.size()
 
