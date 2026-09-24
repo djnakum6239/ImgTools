@@ -20,6 +20,7 @@ pub extern "system" fn Java_com_djnakum_imgtools_NativeEngine_crc32(mut env: JNI
 pub mod detect {
     pub const UNKNOWN: i32 = 0;
     pub const BOOT: i32 = 1;
+    pub const INIT_BOOT: i32 = 13;
     pub const VENDOR_BOOT: i32 = 2;
     pub const SPARSE: i32 = 3;
     pub const OTA_PAYLOAD: i32 = 4;
@@ -38,7 +39,14 @@ pub mod detect {
     }
 
     pub fn detect(bytes: &[u8]) -> i32 {
-        if magic_at(bytes, 0, b"ANDROID!") { return BOOT; }
+        if magic_at(bytes, 0, b"ANDROID!") {
+            if let Ok(header) = crate::boot::parse_boot_header(bytes) {
+                if header.header_version >= 4 && header.kernel_size == 0 && header.ramdisk_size > 0 {
+                    return INIT_BOOT;
+                }
+            }
+            return BOOT;
+        }
         if magic_at(bytes, 0, b"VNDRBOOT") { return VENDOR_BOOT; }
         if magic_at(bytes, 0, &[0x3a, 0xff, 0x26, 0xed]) { return SPARSE; }
         if magic_at(bytes, 0, b"CrAU") { return OTA_PAYLOAD; }
