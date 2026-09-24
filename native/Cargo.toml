@@ -11,3 +11,4 @@ crate-type = ["cdylib", "rlib"]
 lzma-rust2 = { version = "0.21.0", default-features = false, features = ["std", "xz", "encoder"] }
 bzip2-rs = "0.1.2"
 jni = "0.21"
+libc = "0.2"
