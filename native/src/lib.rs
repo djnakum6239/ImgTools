@@ -19,6 +19,30 @@ pub extern "system" fn Java_com_djnakum_imgtools_NativeEngine_crc32(mut env: JNI
     unsafe { imageforge_core::imageforge_crc32(bytes.as_ptr() as *const u8, bytes.len()) as jlong }
 }
 
+fn header_details(bytes: &[u8]) -> String {
+    if let Ok(header) = crate::boot::parse_boot_header(bytes) {
+        return format!(
+            "boot v{} • header {} B • kernel {} B • ramdisk {} B • page {} B",
+            header.header_version,
+            header.header_size,
+            header.kernel_size,
+            header.ramdisk_size,
+            header.page_size
+        );
+    }
+    if let Ok(header) = crate::boot::parse_vendor_boot_header(bytes) {
+        return format!(
+            "vendor_boot v{} • header {} B • vendor ramdisk {} B • dtb {} B • page {} B",
+            header.header_version,
+            header.header_size,
+            header.vendor_ramdisk_size,
+            header.dtb_size,
+            header.page_size
+        );
+    }
+    "Header details unavailable for this format".to_string()
+}
+
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_djnakum_imgtools_NativeEngine_inspectHeader(
     mut env: JNIEnv,
@@ -29,27 +53,37 @@ pub extern "system" fn Java_com_djnakum_imgtools_NativeEngine_inspectHeader(
         Ok(v) => v,
         Err(_) => return std::ptr::null_mut(),
     };
-    let result = if let Ok(header) = crate::boot::parse_boot_header(&bytes) {
-        format!(
-            "boot v{} • header {} B • kernel {} B • ramdisk {} B • page {} B",
-            header.header_version,
-            header.header_size,
-            header.kernel_size,
-            header.ramdisk_size,
-            header.page_size
-        )
-    } else if let Ok(header) = crate::boot::parse_vendor_boot_header(&bytes) {
-        format!(
-            "vendor_boot v{} • header {} B • vendor ramdisk {} B • dtb {} B • page {} B",
-            header.header_version,
-            header.header_size,
-            header.vendor_ramdisk_size,
-            header.dtb_size,
-            header.page_size
-        )
-    } else {
-        "Header details unavailable for this format".to_string()
+    match env.new_string(header_details(&bytes)) {
+        Ok(value) => value.into_raw(),
+        Err(_) => std::ptr::null_mut(),
+    }
+}
+
+/// Inspect a SAF-backed file without copying the file into the JVM.
+///
+/// Kotlin keeps the ParcelFileDescriptor alive while this synchronous JNI call runs. The native
+/// FdSource uses pread, so parsers can later issue independent range reads against the same file.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_djnakum_imgtools_NativeEngine_inspectFile(
+    mut env: JNIEnv,
+    _class: JClass,
+    fd: jint,
+    size: jlong,
+) -> jstring {
+    if size < 0 {
+        return std::ptr::null_mut();
+    }
+    let mut source = match crate::bytesource::FdSource::new(fd, size as u64) {
+        Ok(source) => source,
+        Err(_) => return std::ptr::null_mut(),
     };
+    let prefix = match crate::bytesource::ByteSource::read(&mut source, 0, 65_536) {
+        Ok(bytes) => bytes,
+        Err(_) => return std::ptr::null_mut(),
+    };
+    let code = detect::detect(&prefix);
+    let detail = header_details(&prefix);
+    let result = format!("{}|{}", code, detail);
     match env.new_string(result) {
         Ok(value) => value.into_raw(),
         Err(_) => std::ptr::null_mut(),
