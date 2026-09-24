@@ -1,5 +1,5 @@
 use crate::binary::{align_up, BinaryError};
-use crate::boot::{BootHeader, BootParseError, HEADER_V3_SIZE, VENDOR_HEADER_V3_SIZE};
+use crate::boot::{BootHeader, VENDOR_HEADER_V3_SIZE};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BootSectionKind {
@@ -192,13 +192,6 @@ pub fn vendor_sections(
     }
 
     Ok(sections)
-}
-
-pub fn parse_and_layout_boot(bytes: &[u8]) -> Result<(BootHeader, Vec<BootSection>), BootParseError> {
-    let header = crate::boot::parse_boot_header(bytes)?;
-    let sections = boot_sections(&header, bytes.len() as u64)
-        .map_err(|error| BootParseError::Layout(error.to_string()))?;
-    Ok((header, sections))
 }
 
 #[cfg(test)]
