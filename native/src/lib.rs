@@ -1,6 +1,7 @@
 mod imageforge_core;
 mod boot;
 mod bytesource;
+mod binary;
 use jni::objects::{JByteArray, JClass};
 use jni::sys::{jint, jlong};
 use jni::JNIEnv;
