@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "com.djnakum.imgtools"
-    compileSdk = 37
+    compileSdk = 36
     defaultConfig {
         applicationId = "com.djnakum.imgtools"
         minSdk = 26
@@ -19,7 +19,7 @@ android {
 }
 
 dependencies {
-    val composeBom = platform("androidx.compose:compose-bom:2026.09.00")
+    val composeBom = platform("androidx.compose:compose-bom:2026.06.01")
     implementation(composeBom)
     implementation("androidx.core:core-ktx:1.17.0")
     implementation("androidx.activity:activity-compose:1.11.0")
